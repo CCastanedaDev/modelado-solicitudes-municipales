@@ -36,4 +36,4 @@ python scripts/validar_json.py
 - 437 puntos de validación automatizada
 - Cumple ISO/IEC 25012 en sus 4 dimensiones de calidad
 
-Ver `docs/Informe_Tecnico.pdf` para el detalle completo.
+Ver `docs/Examen_Final_Modelamiento_Castañeda_Gutierrez.pdf` para el detalle completo.
