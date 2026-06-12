@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://municipalidad.cl/schemas/solicitud-metadatos.json",
+  "title": "Metadatos de Solicitud Ciudadana",
+  "description": "Estructura del campo JSONB 'metadatos' de la tabla solicitud. Integra geolocalización, contexto del canal de ingreso y atributos variables por tipo de solicitud, usando un patrón discriminador (atributos.tipo) que activa validación condicional via if/then/else.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["geolocalizacion", "canal_origen", "atributos"],
+  "properties": {
+    "geolocalizacion": { "$ref": "#/$defs/geolocalizacion" },
+    "canal_origen":    { "$ref": "#/$defs/canal_origen" },
+    "atributos":       { "$ref": "#/$defs/atributos" }
+  },
+
+  "$defs": {
+
+    "geolocalizacion": {
+      "title": "Geolocalización del incidente",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lat", "lon"],
+      "properties": {
+        "lat": {
+          "description": "Latitud en grados decimales (WGS84). Rango válido para Chile continental.",
+          "type": "number",
+          "minimum": -56.0,
+          "maximum": -17.5
+        },
+        "lon": {
+          "description": "Longitud en grados decimales (WGS84). Rango válido para Chile continental.",
+          "type": "number",
+          "minimum": -75.7,
+          "maximum": -66.4
+        },
+        "precision_m": {
+          "description": "Precisión estimada del fix GPS, en metros.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5000
+        }
+      }
+    },
+
+    "canal_origen": {
+      "title": "Metadatos del canal de ingreso",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ip", "user_agent"],
+      "properties": {
+        "ip": {
+          "description": "Dirección IP del cliente (IPv4 o IPv6).",
+          "type": "string",
+          "oneOf": [
+            { "format": "ipv4" },
+            { "format": "ipv6" }
+          ]
+        },
+        "user_agent": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "version_app": {
+          "description": "Versión semántica de la app móvil (sólo si el canal es APP_MOVIL).",
+          "type": ["string", "null"],
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        }
+      }
+    },
+
+    "atributos": {
+      "title": "Atributos variables según tipo de solicitud",
+      "description": "Bloque polimórfico. El campo 'tipo' actúa como discriminador y determina qué propiedades específicas son válidas mediante una cadena allOf/if-then-else.",
+      "type": "object",
+      "required": ["tipo"],
+      "properties": {
+        "tipo": {
+          "type": "string",
+          "enum": ["BACHE", "LUMINARIA", "BASURA", "AREAS_VERDES", "RUIDO", "SEMAFORO"]
+        }
+      },
+      "allOf": [
+        {
+          "if":   { "properties": { "tipo": { "const": "BACHE" } }, "required": ["tipo"] },
+          "then": { "$ref": "#/$defs/atributos_bache" }
+        },
+        {
+          "if":   { "properties": { "tipo": { "const": "LUMINARIA" } }, "required": ["tipo"] },
+          "then": { "$ref": "#/$defs/atributos_luminaria" }
+        },
+        {
+          "if":   { "properties": { "tipo": { "const": "BASURA" } }, "required": ["tipo"] },
+          "then": { "$ref": "#/$defs/atributos_basura" }
+        },
+        {
+          "if":   { "properties": { "tipo": { "const": "AREAS_VERDES" } }, "required": ["tipo"] },
+          "then": { "$ref": "#/$defs/atributos_areas_verdes" }
+        },
+        {
+          "if":   { "properties": { "tipo": { "const": "RUIDO" } }, "required": ["tipo"] },
+          "then": { "$ref": "#/$defs/atributos_ruido" }
+        },
+        {
+          "if":   { "properties": { "tipo": { "const": "SEMAFORO" } }, "required": ["tipo"] },
+          "then": { "$ref": "#/$defs/atributos_semaforo" }
+        }
+      ]
+    },
+
+    "atributos_bache": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tipo", "profundidad_cm", "ancho_cm", "calzada"],
+      "properties": {
+        "tipo":           { "const": "BACHE" },
+        "profundidad_cm": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "ancho_cm":       { "type": "integer", "minimum": 1, "maximum": 500 },
+        "calzada":        { "type": "string", "enum": ["ASFALTO", "HORMIGON", "TIERRA"] }
+      }
+    },
+
+    "atributos_luminaria": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tipo", "numero_poste", "tipo_falla"],
+      "properties": {
+        "tipo":         { "const": "LUMINARIA" },
+        "numero_poste": { "type": "string", "pattern": "^P-[0-9]{4}$" },
+        "tipo_falla":   { "type": "string", "enum": ["APAGADA", "INTERMITENTE", "DAÑADA"] }
+      }
+    },
+
+    "atributos_basura": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tipo", "volumen_estimado_m3", "riesgo_sanitario"],
+      "properties": {
+        "tipo":                { "const": "BASURA" },
+        "volumen_estimado_m3": { "type": "number", "minimum": 0.1, "maximum": 50.0 },
+        "riesgo_sanitario":    { "type": "boolean" }
+      }
+    },
+
+    "atributos_areas_verdes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tipo", "tipo_intervencion", "superficie_m2"],
+      "properties": {
+        "tipo":              { "const": "AREAS_VERDES" },
+        "tipo_intervencion": { "type": "string", "enum": ["PODA", "RIEGO", "PLANTACION"] },
+        "superficie_m2":     { "type": "integer", "minimum": 1, "maximum": 10000 }
+      }
+    },
+
+    "atributos_ruido": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tipo", "horario", "fuente_presunta"],
+      "properties": {
+        "tipo":            { "const": "RUIDO" },
+        "horario":         { "type": "string", "enum": ["DIURNO", "NOCTURNO"] },
+        "fuente_presunta": { "type": "string", "enum": ["LOCAL_COMERCIAL", "VIVIENDA", "OBRA", "VEHICULOS"] }
+      }
+    },
+
+    "atributos_semaforo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tipo", "interseccion", "estado_falla"],
+      "properties": {
+        "tipo":         { "const": "SEMAFORO" },
+        "interseccion": { "type": "string", "minLength": 3, "maxLength": 200 },
+        "estado_falla": { "type": "string", "enum": ["APAGADO", "INTERMITENTE_AMARILLO"] }
+      }
+    }
+
+  }
+}
